@@ -37,61 +37,34 @@ main:
 	add $t0, $v0, $zero   ## t0 =  direction
 
 	la $s0, list	## $s1 = list[0]
-	li $t1, 9	## length of array, n //TODO: Consider making this an s register????
 	
 	li $v0, 4	        ## Going to be printing out a string
 	la $a0, sort_info_str	## String prompting user input
 	syscall
+		
+	li $t5, 9	## length of array, n //TODO: Consider making this an s register????
+	addi $t1, $t5, 0
 	
-	jal printData	
-
-	li $t0, 0	## k  = 0
+	jal printLoop		## Printing out the first string
+		
+	li $t0, -1	## k  = 0
 	li $t2, 0	## min
-	li $t3, 0	## j
-	outerLoop:
-		beq $t0, $t1, printData	## print the array if its done
-		addi $t2, $t1, 0	## min = k
+	li $t3, 0	## j = 0
+	
+	OUTER_MAIN_LOOP:
+		bge $t0, $t5, END_printData ## break if k >= length
+		addi $t2, $t0, 0 ## min = k
 		
-		addi $t0, $t0, 1
-		innerLoop:
-			beq $t3, $t1, outerLoop
-			addi $t3, $t0, 1
-			
-			addi $a0, $t0, 0	## argument j
-			addi $a1, $t2, 0	## argument min
-			
-			jal CHECK
-			
-			
-			###############
-			## Checking to see if this evaluates properly
-			li $v0, 1		##
-			add $a0, $zero, $a0	## Print integer
-			syscall 		##
-
-			addi $t3, $t3, 1
-			j innerLoop		
-		END_innerLoop:
+		li $t4, 5
 		
-
+		li $v0, 1		##
+		add $a0, $zero, $t4	## Testing to see how many times this executes
+		syscall 		##
+		
+		addi $t0, $t0, 1	##k++
+		j OUTER_MAIN_LOOP
+	END_OUTER_MAIN_LOOP:
 END_main:
-#check:
-#	bne $s2, 0, ELSE	## if argument == 0  
-#END_check:
-
-CHECK:
-	beq $s0, 0, ELSE		## if argument != 0
-		bgt $a0, $t0 ELIF1  			## if j > min
-			li $a0, 0
-		ELIF1:
-			li $a0, 1
-	ELSE:
-		blt $a0, $t0 ELIF2  			## if j > min
-			li $a0, 0
-		ELIF2:
-			li $a0, 1
-			
-	jr $ra
 
 printData:
 	# while (n > 0)
@@ -109,7 +82,7 @@ printData:
 		li $v0, 4	        ## Going to be printing out a string
 		la $a0, space	        ## Printing out a space
 		syscall	
-		jr $ra
+		j printLoop
 	END_printLoop:
 	jr $ra
 END_printData:

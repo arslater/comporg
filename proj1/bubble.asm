@@ -12,9 +12,10 @@
 	order_prompt_str:  .asciiz "Enter 0 to sort in descending order "
 	order_info_str:    .asciiz "Any number different than 0 will sort in ascending order."
 	sort_info_str:     .asciiz "Before sort:"
+	after_info_str:    .asciiz "After sort:"
 	enter_prompt_str:  .asciiz "Enter number: "
 	space:            .asciiz " "
-	list: .word 7, 9, 4, 3, 8, 1, 6, 2, 5
+	list: .word 70, 90, 40, 30, 80, 10, 60, 20, 50
 	A:    .word   0:100
 		
 .text
@@ -34,9 +35,9 @@ main:
 	## Getting user input acending or descending order ##
 	li $v0, 5	      ##
 	syscall		      ##		    
-	add $t0, $v0, $zero   ## t0 =  direction
+	add $t9, $v0, $zero   ## t0 =  direction
 
-	la $s0, list	## $s1 = list[0]
+	la $s0, list		## $s1 = list[0]
 	
 	li $v0, 4	        ## Going to be printing out a string
 	la $a0, sort_info_str	## String prompting user input
@@ -47,25 +48,90 @@ main:
 	
 	jal printLoop		## Printing out the first string
 		
-	li $t0, -1	## k  = 0
+	li $t0, 0	## k  = 0
 	li $t2, 0	## min
 	li $t3, 0	## j = 0
 	
+	li $t7, 0	##temp
+	
 	OUTER_MAIN_LOOP:
-		bge $t0, $t5, END_printData ## break if k >= length
-		addi $t2, $t0, 0 ## min = k
+		bge $t0, $t5, END_OUTER_MAIN_LOOP ## break if k >= length
+		addi $t2, $t0, 0   ## min = k
 		
-		li $t4, 5
+		addi $t3, $t0, 1   ## j = k+1
+		INNER_MAIN_LOOP:
+			bge $t3, $t5, END_INNER_MAIN_LOOP ## break if j== length
+				        
+			jal CHECK
+			bne $t6, $zero, ELSE1
+				addi $t2, $t3, 0  ## min=j
+			ELSE1:
+			addi $t3, $t3, 1	##j++
+			j INNER_MAIN_LOOP
+		END_INNER_MAIN_LOOP:	
 		
-		li $v0, 1		##
-		add $a0, $zero, $t4	## Testing to see how many times this executes
-		syscall 		##
-		
-		addi $t0, $t0, 1	##k++
+		beq $t2, $t0, END_IF_2
+		##IF_2:
+			mul $s1, $t0, 4
+			mul $s2, $t2, 4
+			
+			lw $t7, list($s2) ## tmp  = list[min]
+			lw $t8, list($s1) ## tmp1 = list[k]
+			sw $t8, list($s2) ## list[min] = list[k]
+			sw $t7, list($s1) ## list[k] = tmp
+		END_IF_2:
+		addi $t0, $t0, 1	##k++	
 		j OUTER_MAIN_LOOP
+		
 	END_OUTER_MAIN_LOOP:
+	
+	li $v0, 4	         ## Going to be printing out a string
+	la $a0, after_info_str   ## String prompting user input
+	syscall
+	
+	la $s0, list
+	addi $t1, $t5, 0
+	#jal transformLoop
+	jal printData
+	j END
+	
 END_main:
 
+CHECK:
+	mul $s1, $t3, 4	## getting index of j
+	mul $s2, $t2, 4 ## getting index of min
+	
+	lw $s1, list($s1) ##list[j]
+	lw $s2, list($s2) ##list[min]
+	
+	beqz $t9, CHECK_IF
+	j CHECK_ELSE
+	CHECK_IF:
+		blt $s1, $s2, CHECK_R_IF
+		li $t6, 1		## j > min (direction = 0)
+		jr $ra
+		CHECK_R_IF:
+			li $t6, 0	## j < min ( direction = 0)
+			jr $ra	
+	CHECK_ELSE:
+		bgt $s1, $s2, CHECK_R1_IF
+		li $t6, 1		## j < min (direction = 1)
+		jr $ra
+		CHECK_R1_IF:		## j > min (direction = 1)
+			li $t6, 0
+			jr $ra
+#transformLoop:	beq $s1, $t5, END_transformLoop
+	## Want to start at the beginning of the arry and convert our indexes into values
+#	li $s1, 0
+#	lw $s1, list($s0)
+#	sw $s0, list($s0)
+#	addi $s1, $s1, 4
+#	addi $s0, $s0, 4
+#	j transformLoop
+#	END_transformLoop:
+#	jr $ra
+	
+	
 printData:
 	# while (n > 0)
 	printLoop:
@@ -86,6 +152,8 @@ printData:
 	END_printLoop:
 	jr $ra
 END_printData:
+
+END:
 ## Ending the loop
 ############################	
 li $v0, 10         # exit program

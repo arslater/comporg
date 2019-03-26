@@ -40,7 +40,7 @@ main:
 	addi $s2, $zero, 57
 	#sb $s2, ($t0)
 	#la $s2, ($t0)
-	jal push
+	jal pop
 	
 	#jal printData
 		
@@ -80,33 +80,39 @@ push:
 	END_LOOP_push:
 	
 	j printData
-	#li, $v0, 11
-	#addu $s0, $s0, 2
-	#lbu $a0, ($s0)	## loading the specified byte
-	#syscall
-	
-	
-	## Change the first element to the second element
-	
-	
-	
-	
-	#pop_LOOP: beq $t0, 10, END_pop_LOOP
-	#	sw $t0, $s0($t5)
-	#	addi $t5, 1
-	#	lw $t0, $s0($t5)
-	#	j pop_LOOP
-	#END_pop_LOOP:
-	
-	## testing, should print out the first value of the array
-	#li $v0, 11
-	#addu $s0, $s0, $zero
-	#lbu $a0, ($a1)
-	#syscall
-	
 	jr $ra
 	
 END_push:
+
+pop:
+	################
+	## Removes the first element of the array specified by $s1
+	## by moving up all of the array elements. Returns (sets $s0 equal to)
+	## the first element of the stack
+	
+	li $t3, 0	# i =0	
+	la $s3, ($s1)	## backing up pointer to beginning of stack
+	
+	## Return the first element
+	lbu $s0, ($s1)
+	
+	LOOP_pop: beq $t1, 10, END_LOOP_pop
+		#############
+		## starting at the first element, kind of the opposite of push()
+		## move everything up an index
+		lbu $t1, 1($s1)
+		sb $t1, ($s1)
+		
+		addi $t3, $t3,1 ##i++
+		la $s1, ($s3)
+		addu $s1, $s1, $t3
+		
+		j LOOP_pop
+	END_LOOP_pop:
+	
+	j printData
+	jr $ra
+END_pop:
 
 printData:
 	# while (n > 0)

@@ -34,15 +34,13 @@ main:
 	
 	la $a1, input	
 	li $t5, 0
-
-	#li $
 	la $s1, input
 	addi $s2, $zero, 57
-	#sb $s2, ($t0)
-	#la $s2, ($t0)
-	jal pop
+
+	jal pf
+	end_pf: la $s1, postfix
 	
-	#jal printData
+	jal printData
 		
 	li $v0, 10         # exit program
 	syscall
@@ -61,14 +59,14 @@ push:
 	addi $t3, $t3,1 ##i++
 	la $s1, ($s3)
 	
-	LOOP_push: beq $t1, 10, END_LOOP_push
+	LOOP_push: beq $t1, 0, END_LOOP_push
 		
 		addu $s1, $s1, $t3
 		lbu $t0, ($s1)
 		sb $t1, ($s1)		##A[2]=t1
 		addi $t3, $t3,1 ##i++
 		la $s1, ($s3)
-		beq $t0, 10, END_LOOP_push
+		beq $t0, 0, END_LOOP_push
 		
 		addu $s1, $s1, $t3	
 		lbu  $t1, ($s1)		## t1 = A[1]
@@ -78,15 +76,14 @@ push:
 		
 		j LOOP_push
 	END_LOOP_push:
-	
-	j printData
+
 	jr $ra
 	
 END_push:
 
 pop:
 	################
-	## Removes the first element of the array specified by $s1
+	## Removes the first element of the "stack" (array) specified by $s1
 	## by moving up all of the array elements. Returns (sets $s0 equal to)
 	## the first element of the stack
 	
@@ -96,7 +93,7 @@ pop:
 	## Return the first element
 	lbu $s0, ($s1)
 	
-	LOOP_pop: beq $t1, 10, END_LOOP_pop
+	LOOP_pop: beq $t1, 0, END_LOOP_pop
 		#############
 		## starting at the first element, kind of the opposite of push()
 		## move everything up an index
@@ -109,25 +106,90 @@ pop:
 		
 		j LOOP_pop
 	END_LOOP_pop:
-	
-	j printData
+
 	jr $ra
 END_pop:
 
+pf:
+	################################
+	## Actual postfixing done here.
+	## This assumes a valid infix expression
+	
+	li $t4, 0	## i = 0
+	
+	process_LOOP:
+		
+		lbu $t1, input($t4)
+		beqz $t1, END_process_LOOP
+		beq $t1 43, plus
+		beq $t1 45, minus
+		beq $t1 40, lparen
+		beq $t1 41, rparen
+		bne $t1 41, operand
+		## instead of making an else, I'm just doing
+		## reverse logic of having all of these commands go to their
+		## respective 'if' statmeents then jumping
+		## back to the beginning of the loop
+		plus:
+			la $s1, opstack
+			addi $s2, $t1, 0
+			jal push
+			j iter
+		minus:
+			la $s1, opstack
+			addi $s2, $t1, 0
+			jal push
+			j iter
+		lparen:	#(
+			addi $t4, $t4, 1
+			
+			j process_LOOP	## basically just ignore it
+		rparen: #)
+			la $s1, opstack
+			jal pop
+			
+			la $s1, postfix
+			addi $s2, $s0, 0
+			jal push
+			
+			j iter
+	
+		operand:
+			la $s1, postfix
+			addi $s2, $t1, 0
+			jal push
+			j iter
+		
+		iter:
+			addi $t4, $t4, 1
+		
+			#la $s1, opstack
+			#jal printData
+			#la $s1, postfix
+			#jal printData
+			j process_LOOP	
+			
+	END_process_LOOP:
+
+	j end_pf
+END_pf:
+
 printData:
 	# while (n > 0)
+	li $a0, 1
 	printLoop: beq $a0, 0, END_printLoop
-		
+		la $s2, ($s1)
 		## print the charachter
-		li, $v0, 11
-		addu $a1, $a1, $t5
-		lbu $a0, ($a1)
+		li $v0, 11
+		addu $s1, $s1, $t5
+		lbu $a0, ($s1)
 		beq $a0, 0, END_printLoop
 		syscall
 		
 		add $t5, $t5, 1	#i++
-		la $a1, input   # only increment the index, reset $a1 to be input[0]
+		la $s1, ($s2)   # only increment the index, reset $a1 to be input[0]
 		j printLoop
 	END_printLoop:
+	li $t5, 0
 	jr $ra
 END_printData:

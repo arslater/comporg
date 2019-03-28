@@ -15,6 +15,7 @@
 	opstack:          .space 80
 	postfix:	  .space 80	## 20 element array for postfix resultant string
 	newstack:	  .space 80	## 20 element array for reverse string
+	evalstack:	  .space 80	## 20 element array for reverse string
 	A:                .word   0:100		
 .text
 
@@ -41,11 +42,19 @@ main:
 	jal pf
 	end_pf: la $s1, postfix
 	
-	jal sizeof 
+	jal reverse 
 	#end_rev:
-	end_rev:la $s1, newstack
+	end_reverse:la $s1, newstack
 	jal printData
-		
+	
+	la $s1, newstack
+	jal eval	
+	#la $s1, evalstack
+	
+	lbu $a0, evalstack
+	li $v0, 1
+	syscall
+	
 	li $v0, 10         # exit program
 	syscall
  
@@ -139,11 +148,13 @@ pf:
 			la $s1, opstack
 			addi $s2, $t1, 0
 			jal push
+		
 			j iter
 		minus:
 			la $s1, opstack
 			addi $s2, $t1, 0
 			jal push
+			
 			j iter
 		lparen:	#(
 			addi $t4, $t4, 1
@@ -163,6 +174,7 @@ pf:
 			la $s1, postfix
 			addi $s2, $t1, 0
 			jal push
+			
 			j iter
 		
 		iter:
@@ -179,33 +191,84 @@ pf:
 	j end_pf
 END_pf:
 
-sizeof:
+reverse:
 	li $t4, 0
 	la $s4, ($s1)
 	la $s0, newstack
 	li $t6, 1
-	sizeof_LOOP: beqz $t6, END_sizeof_LOOP
+	reverse_LOOP: beqz $t6, END_reverse_LOOP
 		addu $s1, $s1, $t4
 		lbu $t6, ($s1)
-		beqz $t6, END_sizeof_LOOP
+		beqz $t6, END_reverse_LOOP
 		la $s1, newstack
 		addi $s2, $t6, 0
 		jal push
 		
 		la $s1, ($s4)
 		addi $t4, $t4, 1
-		j sizeof_LOOP
-	END_sizeof_LOOP:
+		j reverse_LOOP
+	END_reverse_LOOP:
 	addi $s0, $t4, 0
-	j end_rev
-end_sizeof:
-
+	j end_reverse
+	
+eval:
+	la $s4, ($s1) ## backing up
+	la $s6, ($ra)
+	li $t1, 1
+	li $t4, 0
+	eval_LOOP: 
+		addu $s1, $s1, $t4
+		lbu $t1, ($s1)
+		
+		beq $t1, 10, END_eval_LOOP
+		beq $t1, 43, p	## plus
+		beq $t1, 45, m	## minus
+		bne $t1, 45, o	## operand
+		p:
+			# do evaluation
+			la $s1, evalstack	## get first operand
+			jal pop
+			subi $t5, $s0, 0
+			la $s1, evalstack
+			jal pop			## get second operand
+			subi $t6, $s0, 0
+			add $s2, $t6, $t5
+			la $s1, evalstack
+			jal push		## push result back on the stack
+			j i
+		m:
+			## do evaluation
+			la $s1, evalstack
+			jal pop
+			subi $t5, $s0, 0
+			la $s1, evalstack
+			jal pop
+			subi $t6, $s0, 0
+			sub $s2, $t6, $t5
+			la $s1, evalstack
+			jal push
+			j i
+		o:
+			## add operands to evalstack
+			la $s1, evalstack
+			subi $s2, $t1, 48
+			jal push
+			j i
+		i:
+			la $s1, ($s4)
+			addi $t4, $t4, 1
+			j eval_LOOP
+	END_eval_LOOP:
+	la $ra, ($s6)
+	jr $ra
+END_eval:
 printData:
 	# while (n > 0)
 	
 	## want to start at the top of the stack, not the bottom
 	li $a0, 1
 	la $s2, ($s1)
+	
 	printLoop: blt $a0, 0, END_printLoop
 		
 		## print the charachter

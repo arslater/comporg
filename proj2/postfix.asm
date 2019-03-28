@@ -14,6 +14,7 @@
 	input:            .space 80 	## 20 element array, allocating size ahead of time
 	opstack:          .space 80
 	postfix:	  .space 80	## 20 element array for postfix resultant string
+	newstack:	  .space 80	## 20 element array for reverse string
 	A:                .word   0:100		
 .text
 
@@ -40,6 +41,9 @@ main:
 	jal pf
 	end_pf: la $s1, postfix
 	
+	jal sizeof 
+	#end_rev:
+	end_rev:la $s1, newstack
 	jal printData
 		
 	li $v0, 10         # exit program
@@ -123,7 +127,8 @@ pf:
 		beqz $t1, END_process_LOOP
 		beq $t1 43, plus
 		beq $t1 45, minus
-		beq $t1 40, lparen
+		beq $t1 40, lparen	## no whitespaces
+		beq $t1 32, lparen
 		beq $t1 41, rparen
 		bne $t1 41, operand
 		## instead of making an else, I'm just doing
@@ -170,15 +175,39 @@ pf:
 			j process_LOOP	
 			
 	END_process_LOOP:
-
+	addi $s0, $t4, 0
 	j end_pf
 END_pf:
 
+sizeof:
+	li $t4, 0
+	la $s4, ($s1)
+	la $s0, newstack
+	li $t6, 1
+	sizeof_LOOP: beqz $t6, END_sizeof_LOOP
+		addu $s1, $s1, $t4
+		lbu $t6, ($s1)
+		beqz $t6, END_sizeof_LOOP
+		la $s1, newstack
+		addi $s2, $t6, 0
+		jal push
+		
+		la $s1, ($s4)
+		addi $t4, $t4, 1
+		j sizeof_LOOP
+	END_sizeof_LOOP:
+	addi $s0, $t4, 0
+	j end_rev
+end_sizeof:
+
 printData:
 	# while (n > 0)
+	
+	## want to start at the top of the stack, not the bottom
 	li $a0, 1
-	printLoop: beq $a0, 0, END_printLoop
-		la $s2, ($s1)
+	la $s2, ($s1)
+	printLoop: blt $a0, 0, END_printLoop
+		
 		## print the charachter
 		li $v0, 11
 		addu $s1, $s1, $t5
@@ -186,7 +215,7 @@ printData:
 		beq $a0, 0, END_printLoop
 		syscall
 		
-		add $t5, $t5, 1	#i++
+		addi $t5, $t5, 1	#i++
 		la $s1, ($s2)   # only increment the index, reset $a1 to be input[0]
 		j printLoop
 	END_printLoop:

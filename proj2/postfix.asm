@@ -105,6 +105,7 @@ pop:
 	## by moving up all of the array elements. Returns (sets $s0 equal to)
 	## the first element of the stack
 	
+	li $t1, 1	## IMPORTANT!!! Need this or loop will never run!!
 	li $t3, 0	# i =0	
 	la $s3, ($s1)	## backing up pointer to beginning of stack
 	

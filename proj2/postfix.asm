@@ -43,17 +43,22 @@ main:
 	end_pf: la $s1, postfix
 	
 	jal reverse 
-	#end_rev:
 	end_reverse:la $s1, newstack
 	jal printData
 	
+	##printing equal sign
+	li $a0, 61
+	li $v0, 11
+	syscall
+	
+	## getting evaluated value
 	la $s1, newstack
 	jal eval	
-	#la $s1, evalstack
-	
+	## printing it out as an int
 	lbu $a0, evalstack
 	li $v0, 1
 	syscall
+	
 	
 	li $v0, 10         # exit program
 	syscall
@@ -179,11 +184,6 @@ pf:
 		
 		iter:
 			addi $t4, $t4, 1
-		
-			#la $s1, opstack
-			#jal printData
-			#la $s1, postfix
-			#jal printData
 			j process_LOOP	
 			
 	END_process_LOOP:
@@ -263,8 +263,6 @@ eval:
 	jr $ra
 END_eval:
 printData:
-	# while (n > 0)
-	
 	## want to start at the top of the stack, not the bottom
 	li $a0, 1
 	la $s2, ($s1)
@@ -275,7 +273,7 @@ printData:
 		li $v0, 11
 		addu $s1, $s1, $t5
 		lbu $a0, ($s1)
-		beq $a0, 0, END_printLoop
+		beq $a0, 10, END_printLoop	# no newline chars
 		syscall
 		
 		addi $t5, $t5, 1	#i++

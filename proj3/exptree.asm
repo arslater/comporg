@@ -249,7 +249,7 @@ buildTree:
 	la $a2, ($ra)	## backign up return pointer
 	lbu $t5, ($s1)
 	
-	t_buildLOOP: beqz $t5, END_t_buildLOOP
+	t_buildLOOP: beq $t5, 10, END_t_buildLOOP
 		
 		beq $t5, 43, t_operator
 		beq $t5, 45, t_operator
@@ -267,8 +267,8 @@ buildTree:
 			
 			li $a3, 1		## flag that we're pushing subtree
 			la $s1, tree
-			sw $s2, ($t6)
-			jal push2		## pushing subtree to tree
+			lw $s2, ($t6)
+			jal pushAddr		## pushing subtree to tree
 			
 			
 			
@@ -297,25 +297,30 @@ buildTree:
 
 lbu $s3, 1($s1)
 
-lbu $a0, ($s1)
+lw $a0, ($s1)
 li $v0, 11
 syscall
 li $a0, 10
 syscall
 
-lbu $a0, 4($s1)
+
+lw $a0, 4($s1)
+
 #addi $a0, $a0, 48
 li $v0, 11
 syscall
 li $a0, 10
 syscall
 
-lbu $a0, 8($s1)
+lw $a0, 8($s1)
 li $v0, 11
 #addi $a0, $a0, 48
 syscall
 li $a0, 10
 syscall	
+
+li $v0, 10         # exit program
+	syscall
 	la $ra, ($a2)
 	jr $ra
 END_buildTree:
@@ -435,41 +440,20 @@ printData:
 END_printData:
 
 
-push2:
-	## want to "move the whole array
-	## set the second index to the first index, overwriting
-	## the first index 
-	la $s3, ($s1)	## backup pointer
-	li $t3, 0	## iteration value starting @ zero
+pushAddr:
+	li $t0, 0	# i =0
+	la $s3, ($s1)	## backing up
+	lw $t1, ($s1)
 	
-	lbu $t1, ($s1)  ##t1 = A[0]
-	beq $a3, 4, word12
-	sb $s2, ($s1)	##A[0] = arg
-	j END_word2
-	word12:
+	addr_LOOP: beqz $t1, addItem
+		addi $t0,$t0, 4 ## i +=4
+		la $s1, ($s3)	# reset so doesnt douple increment
+		add $s1, $s1, $t0
+		lw $t1, ($s1)
+		j addr_LOOP
+	addItem:
+	
 		sw $s2, ($s1)
-	END_word2:
-	addi $t3, $t3,4 ##i++
-	la $s1, ($s3)
-	
-	LOOP_push2: beq $t1, 0, END_LOOP_push2
+		jr $ra
 		
-		addu $s1, $s1, $t3
-		lbu $t0, ($s1)
-		sb $t1, ($s1)		##A[2]=t1
-		addi $t3, $t3,4 ##i++
-		la $s1, ($s3)
-		beq $t0, 0, END_LOOP_push2
-		
-		addu $s1, $s1, $t3	
-		lbu  $t1, ($s1)		## t1 = A[1]
-		sb $t0, ($s1)		##A[1] = t0
-		addi $t3, $t3,4 ##i++
-		la $s1, ($s3)
-		
-		j LOOP_push2
-	END_LOOP_push2:
-
-	jr $ra
-	
-END_push2:
+END_pushAddr:

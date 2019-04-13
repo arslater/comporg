@@ -16,8 +16,8 @@
 	postfix:	  .space 80	## 20 element array for postfix resultant string
 	newstack:	  .space 80	## 20 element array for reverse string
 	evalstack:	  .space 80	## 20 element array for reverse string
-	tree:             .space 80
-	subtree:	  .space 16
+	tree:             .word 0:100
+	subtree:	  .word 0:25
 	A:                .word   0:100		
 .text
 
@@ -58,7 +58,14 @@ main:
 	jal buildTree
 	
 	la $s1, tree
-	jal printData
+	
+	jal evalTree
+	
+	li $v0, 1
+	addi $a0, $s0, 0
+	syscall
+	
+	#jal printData
 	
 	
 	##printing equal sign
@@ -88,7 +95,12 @@ push:
 	li $t3, 0	## iteration value starting @ zero
 	
 	lbu $t1, ($s1)  ##t1 = A[0]
+	beq $a3, 1, word1
 	sb $s2, ($s1)	##A[0] = arg
+	j END_word
+	word1:
+		sw $s2, ($s1)
+	END_word:
 	addi $t3, $t3,1 ##i++
 	la $s1, ($s3)
 	
@@ -226,66 +238,15 @@ reverse:
 	END_reverse_LOOP:
 	addi $s0, $t4, 0
 	j end_reverse
-	
-eval:
-	la $s4, ($s1) ## backing up
-	la $s6, ($ra)
-	li $t1, 1
-	li $t4, 0
-	eval_LOOP: 
-		addu $s1, $s1, $t4
-		lbu $t1, ($s1)
-		
-		beq $t1, 10, END_eval_LOOP
-		beq $t1, 43, p	## plus
-		beq $t1, 45, m	## minus
-		bne $t1, 45, o	## operand
-		p:
-			# do evaluation
-			la $s1, evalstack	## get first operand
-			jal pop
-			subi $t5, $s0, 0
-			la $s1, evalstack
-			jal pop			## get second operand
-			subi $t6, $s0, 0
-			add $s2, $t6, $t5
-			la $s1, evalstack
-			jal push		## push result back on the stack
-			j i
-		m:
-			## do evaluation
-			la $s1, evalstack
-			jal pop
-			subi $t5, $s0, 0
-			la $s1, evalstack
-			jal pop
-			subi $t6, $s0, 0
-			sub $s2, $t6, $t5
-			la $s1, evalstack
-			jal push
-			j i
-		o:
-			## add operands to evalstack
-			la $s1, evalstack
-			subi $s2, $t1, 48
-			jal push
-			j i
-		i:
-			la $s1, ($s4)
-			addi $t4, $t4, 1
-			j eval_LOOP
-	END_eval_LOOP:
-	la $ra, ($s6)
-	jr $ra
-END_eval:
 
 buildTree:
 	li $t0, 0
 	li $t4, 0
 	li $t5, 1
+	li $a3, 0	## remove flag
 	la $t6, subtree
 	la $s4, ($s1)	## backing up $s1
-	la $a3, ($ra)	## backign up return pointer
+	la $a2, ($ra)	## backign up return pointer
 	lbu $t5, ($s1)
 	
 	t_buildLOOP: beqz $t5, END_t_buildLOOP
@@ -303,32 +264,24 @@ buildTree:
 			addi $s2, $t5, 0
 			jal push		## pushing operator to opstack
 			
+			
+			li $a3, 1		## flag that we're pushing subtree
 			la $s1, tree
-			addi $s2, $t6, 0
-			jal push		## pushing subtree to tree
+			sw $s2, ($t6)
+			jal push2		## pushing subtree to tree
 			
-			## TODO: Do I need to reset t0?????
 			
-			la $s1, ($t6)
-			jal printData
-			
-			###print newline
-			li $v0, 11
-			li $a0, 10
-			syscall
 			
 			## erase opstack
 			li $s1, 0
 			la $t6, subtree
+			sw $s1, ($t6)
 			
-			sb $s1, ($t6)
-			sb $s1, 1($t6)
-			sb $s1, 2($t6)
-			
+			li $a3, 0	## remove flag
 			j t_iter
 		t_operand: # operand ( the numbers )
 			la $s1, ($t6)
-			addi $s2, $t5, 0
+			subi $s2, $t5, 48
 			jal push		## pushing to the "opstack"
 			
 			j t_iter
@@ -338,10 +291,124 @@ buildTree:
 			addu $s1, $s1, $t4
 			lbu $t5, ($s1)
 			 j t_buildLOOP
-	END_t_buildLOOP:	
-	la $ra, ($a3)
+	END_t_buildLOOP:
+	
+	la $s1, tree
+
+lbu $s3, 1($s1)
+
+lbu $a0, ($s1)
+li $v0, 11
+syscall
+li $a0, 10
+syscall
+
+lbu $a0, 4($s1)
+#addi $a0, $a0, 48
+li $v0, 11
+syscall
+li $a0, 10
+syscall
+
+lbu $a0, 8($s1)
+li $v0, 11
+#addi $a0, $a0, 48
+syscall
+li $a0, 10
+syscall	
+	la $ra, ($a2)
 	jr $ra
 END_buildTree:
+
+evalTree:
+	la $s4, ($s1) ## backing up pointer
+	la $a3, ($ra)
+	li $t4, 0
+	lbu $t5, ($s1)
+	t_evalLOOP: beqz $t5, END_t_evalLOOP
+		
+		beq $t5, 43, eval_plus
+		beq $t5, 45, eval_sub
+		bne $t5, 45, eval_operand
+		
+		eval_plus:
+		
+			la $t5, tree
+			
+			## pop the operator
+			la $s1, ($t5)
+			jal pop
+			
+			## pop second element and save in $t6
+			la $s1, ($t5)
+			jal pop
+			addi $t6, $s0, 0
+			
+			## pop third element and save in $t7
+			la $s1, ($t5)
+			jal pop
+			addi $t7, $s0, 0
+			
+			## pop the "root" node
+			la $s1, ($s4)
+			jal pop
+			
+			## Perform the plus operator, save in $t6
+			add $t6, $t6, $t5
+			
+			## push the result back on the stack
+			addi $s2, $t6, 0
+			la $s1, ($s4)
+			jal push
+			
+			j t_eval_iter
+			
+		eval_sub:
+			## pop the operator
+			
+			la $t5, tree
+			la $s1, ($t5)
+			jal pop
+			
+			## pop second element and save in $t6
+			la $s1, ($t5)
+			jal pop
+			addi $t6, $s0, 0
+			
+			## pop third element and save in $t7
+			la $s1, ($t5)
+			jal pop
+			addi $t7, $s0, 0
+			
+			## pop the "root" node
+			la $s1, ($s4)
+			jal pop
+			
+			## Perform the plus operator, save in $t6
+			sub $t6, $t6, $t5
+			
+			## push the result back on the stack
+			addi $s2, $t6, 0
+			la $s1, ($s4)
+			jal push
+			
+			j t_eval_iter
+			
+		eval_operand:
+		
+		t_eval_iter:
+			li $t6, 0
+			li $t7, 0
+			la $s1, ($s4)
+			addi $t4, $t4, 1
+			add $s1, $s1, $t4
+			lbu $t5 ($s1)
+			j t_evalLOOP
+	END_t_evalLOOP:
+	la $ra, ($a3)
+	lbu $s0, ($s1)
+	jr $ra
+endEvalTree:
 
 printData:
 	## want to start at the top of the stack, not the bottom
@@ -366,3 +433,43 @@ printData:
 	li $t5, 0
 	jr $ra
 END_printData:
+
+
+push2:
+	## want to "move the whole array
+	## set the second index to the first index, overwriting
+	## the first index 
+	la $s3, ($s1)	## backup pointer
+	li $t3, 0	## iteration value starting @ zero
+	
+	lbu $t1, ($s1)  ##t1 = A[0]
+	beq $a3, 4, word12
+	sb $s2, ($s1)	##A[0] = arg
+	j END_word2
+	word12:
+		sw $s2, ($s1)
+	END_word2:
+	addi $t3, $t3,4 ##i++
+	la $s1, ($s3)
+	
+	LOOP_push2: beq $t1, 0, END_LOOP_push2
+		
+		addu $s1, $s1, $t3
+		lbu $t0, ($s1)
+		sb $t1, ($s1)		##A[2]=t1
+		addi $t3, $t3,4 ##i++
+		la $s1, ($s3)
+		beq $t0, 0, END_LOOP_push2
+		
+		addu $s1, $s1, $t3	
+		lbu  $t1, ($s1)		## t1 = A[1]
+		sb $t0, ($s1)		##A[1] = t0
+		addi $t3, $t3,4 ##i++
+		la $s1, ($s3)
+		
+		j LOOP_push2
+	END_LOOP_push2:
+
+	jr $ra
+	
+END_push2:
